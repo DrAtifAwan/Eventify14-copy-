@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_event'])) {
     $event_date = $_POST['event_date'];
     $event_location = $_POST['event_location'];
     $event_description = $_POST['event_description'];
+    $event_capacity = $_POST['event_capacity']; // Added this line
 
     // Handle file upload
     $image_path = "";
@@ -51,10 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_event'])) {
         }
     }
 
-    // Insert event details including image path
-    $sql = "INSERT INTO events (name, date, location, description, organizer_id, image_path) VALUES (?, ?, ?, ?, ?, ?)";
+    // Insert event details including capacity and image path
+    $sql = "INSERT INTO events (name, date, location, description, organizer_id, image_path, capacity) VALUES (?, ?, ?, ?, ?, ?, ?)"; // Modified SQL
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssssss", $event_name, $event_date, $event_location, $event_description, $_SESSION['user_id'], $image_path);
+    $stmt->bind_param("ssssssi", $event_name, $event_date, $event_location, $event_description, $_SESSION['user_id'], $image_path, $event_capacity);
 
     if ($stmt->execute()) {
         $success_message = "Event created successfully!";
@@ -131,9 +132,10 @@ $notifications = $result->fetch_all(MYSQLI_ASSOC);
                 <label for="event_description">Event Description</label>
                 <textarea name="event_description" id="event_description" class="form-control" placeholder="Event Description" required></textarea>
             </div>
-            <div class="form-group"> 
-                <label for="event_capacity">Event Capacity</label> 
-                <input type="number" name="event_capacity" id="event_capacity" class="form-control" value="<?php echo $event['capacity']; ?>" required> </div>
+            <div class="form-group">
+                <label for="event_capacity">Event Capacity</label> <!-- Added this field -->
+                <input type="number" name="event_capacity" id="event_capacity" class="form-control" placeholder="Event Capacity" required>
+            </div>
             <div class="form-group">
                 <label for="event_image">Event Image</label>
                 <input type="file" name="event_image" id="event_image" class="form-control">
@@ -156,8 +158,8 @@ $notifications = $result->fetch_all(MYSQLI_ASSOC);
                         <th>Location</th>
                         <th>Description</th>
                         <th>Image</th>
-                        <th>Capacity</th>
-                        <th>Remaining Spots</th>
+                        <th>Capacity</th> <!-- Added Capacity column -->
+                        <th>Remaining Spots</th> <!-- Added Remaining Spots column -->
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -169,20 +171,21 @@ $notifications = $result->fetch_all(MYSQLI_ASSOC);
                         <td><?php echo $event['location']; ?></td>
                         <td><?php echo $event['description']; ?></td>
                         <td><img src="<?php echo $event['image_path']; ?>" alt="Event Image" style="width: 100px; height: 100px;"></td>
-                        <td><?php echo $event['capacity']; ?></td>
+                        <td><?php echo $event['capacity']; ?></td> <!-- Display Capacity -->
                         <td>
                             <?php
-                            // Fetch the number of bookings for the event
-                            $sql = "SELECT COUNT(*) AS total_booked FROM bookings WHERE event_id = ?";
+                            // Fetch the number of RSVPs for the event
+                            $sql = "SELECT COUNT(*) AS rsvp_count FROM rsvps WHERE event_id = ?";
                             $stmt = $conn->prepare($sql);
                             $stmt->bind_param("i", $event['id']);
                             $stmt->execute();
                             $result = $stmt->get_result();
-                            $booked = $result->fetch_assoc()['total_booked'];
+                            $rsvp_count = $result->fetch_assoc()['rsvp_count'];
                             $stmt->close();
 
-                            // Calculate remaining spots
-                            $remaining_spots = $event['capacity'] - $booked;
+                            // Handle cases where capacity might not be set
+                            $event_capacity = isset($event['capacity']) ? $event['capacity'] : 0;
+                            $remaining_spots = $event_capacity - $rsvp_count;
                             ?>
                             <p><?php echo $remaining_spots; ?></p>
                         </td>
