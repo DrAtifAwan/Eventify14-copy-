@@ -67,6 +67,8 @@ unset($_SESSION['rsvp_message']);
                         <th>Date</th>
                         <th>Location</th>
                         <th>Description</th>
+                        <th>Capacity</th> <!-- Added Capacity column -->
+                        <th>Remaining Spots</th> <!-- Added Remaining Spots column -->
                         <th>RSVP</th>
                         <th>View</th>
                     </tr>
@@ -78,11 +80,37 @@ unset($_SESSION['rsvp_message']);
                         <td><?php echo $event['date']; ?></td>
                         <td><?php echo $event['location']; ?></td>
                         <td><?php echo $event['description']; ?></td>
+                        <td><?php echo $event['capacity']; ?></td> <!-- Display Capacity -->
+                        <td>
+                            <?php
+                            // Fetch the number of RSVPs for the event
+                            $sql = "SELECT COUNT(*) AS rsvp_count FROM rsvps WHERE event_id = ?";
+                            $stmt = $conn->prepare($sql);
+                            $stmt->bind_param("i", $event['id']);
+                            $stmt->execute();
+                            $result = $stmt->get_result();
+                            $rsvp_count = $result->fetch_assoc()['rsvp_count'];
+                            $stmt->close();
+
+                            // Handle cases where capacity might not be set
+                            $event_capacity = isset($event['capacity']) ? $event['capacity'] : 0;
+                            $remaining_spots = $event_capacity - $rsvp_count;
+                            ?>
+                            <p>
+                                <?php
+                                if ($remaining_spots <= 0) {
+                                    echo "Sorry, No space left";
+                                } else {
+                                    echo $remaining_spots;
+                                }
+                                ?>
+                            </p>
+                        </td>
                         <td>
                             <form method="POST" action="rsvp_event.php">
                                 <input type="hidden" name="event_id" value="<?php echo $event['id']; ?>">
-                                <button type="submit" name="status" value="attend" class="btn btn-success">Attend</button>
-                                <button type="submit" name="status" value="maybe" class="btn btn-warning">Maybe</button>
+                                <button type="submit" name="status" value="attend" class="btn btn-success" <?php echo $remaining_spots <= 0 ? 'disabled' : ''; ?>>Attend</button>
+                                <button type="submit" name="status" value="maybe" class="btn btn-warning" <?php echo $remaining_spots <= 0 ? 'disabled' : ''; ?>>Maybe</button>
                                 <button type="submit" name="status" value="decline" class="btn btn-danger">Decline</button>
                             </form>
                         </td>
